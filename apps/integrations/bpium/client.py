@@ -27,6 +27,8 @@ class BpiumClient:
         self.command_log_catalog_id = self._read_required_int_env("BPIUM_COMMAND_LOG_CATALOG_ID")
 
         self.request_timeout_sec = float(os.getenv("BPIUM_TIMEOUT_SEC", "15"))
+
+        # Сессионный клиент: cookie после /auth/login хранится здесь и используется дальше.
         self._session = httpx.Client(base_url=self.base_url, timeout=self.request_timeout_sec)
         self._is_authenticated = False
 
@@ -89,7 +91,7 @@ class BpiumClient:
 
         self._request(
             method="POST",
-            path=f"/catalogs/{self.notes_catalog_id}/records",
+            path=f"/api/v1/catalogs/{self.notes_catalog_id}/records",
             json=payload,
         )
 
@@ -112,7 +114,7 @@ class BpiumClient:
 
         response_json = self._request(
             method="POST",
-            path=f"/catalogs/{self.users_catalog_id}/records/search",
+            path=f"/api/v1/catalogs/{self.users_catalog_id}/records/search",
             json=search_payload,
         )
 
@@ -138,11 +140,10 @@ class BpiumClient:
     def _request(self, method: str, path: str, json: dict | None = None) -> dict:
         self._ensure_authenticated()
 
-        api_path = f"/api/v1{path}"
         try:
             response = self._session.request(
                 method=method,
-                url=api_path,
+                url=path,
                 json=json,
             )
             response.raise_for_status()
@@ -178,7 +179,6 @@ class BpiumClient:
         except httpx.RequestError as exc:
             raise BpiumAPIError(f"Bpium API недоступен при авторизации: {exc}") from exc
 
-        # После /auth/login используем сессионную cookie, которую хранит self._session.
         self._is_authenticated = True
 
     def _read_required_env(self, name: str) -> str:
